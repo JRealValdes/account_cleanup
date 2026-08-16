@@ -18,6 +18,7 @@ from pydantic import BaseModel, Field
 from tqdm import tqdm
 
 from account_cleanup.config import CANDIDATES_JSON, DEFAULT_MODEL, EMAILS_JSONL, GOOGLE_EMAILS, INVENTORY_CSV
+from account_cleanup.severity import GRAVEDAD_SCALE
 
 _PERSONAL_MAIL_DOMAINS = {"gmail.com", "googlemail.com"}
 _OWN_ADDRESSES = {addr.lower() for addr in GOOGLE_EMAILS.values()}
@@ -375,13 +376,18 @@ class DetectedAccount(BaseModel):
     google_account: str
     domain: str
     confidence: float = Field(ge=0, le=1)
+    gravedad: int = Field(
+        ge=0,
+        le=100,
+        description="Impacto 0-100 si un atacante accede a esa cuenta",
+    )
 
 
 class DetectionBatch(BaseModel):
     accounts: list[DetectedAccount]
 
 
-_SYSTEM_PROMPT = """Eres un analista que reconstruye un inventario de cuentas online a partir de metadatos de correo.
+_SYSTEM_PROMPT = f"""Eres un analista que reconstruye un inventario de cuentas online a partir de metadatos de correo.
 
 El usuario quiere saber EN QUÉ SITIOS se ha llegado a registrar, para poder hacer limpieza de cuentas (cerrarlas, borrar datos, darse de baja).
 
@@ -395,9 +401,13 @@ Para cada candidato (dominio + cuenta Google) decide:
 - service_name: marca o producto corto (Spotify, GitHub, SHARE NOW). No uses la dirección de no-reply. Si un mismo dominio agrupa productos distintos y los asuntos lo dejan claro, un nombre conjunto breve ("Uber / Uber Eats").
 - description: en español, 1-2 frases sobre QUÉ ES el sitio y para qué se usa, para que el usuario lo reconozca. No enumeres los tipos de correo recibidos.
 - confidence: 0 a 1.
+- gravedad: entero 0-100. {GRAVEDAD_SCALE}
 
 Criterios límite:
 - Un "bienvenido al equipo / sesión de acogida / welcome kit" laboral, por sí solo, no es una cuenta de usuario.
+- Un "Bienvenido a [producto]" o "te damos la bienvenida a la app" enviado por el propio servicio (account-noreply, do_not_reply, etc.) SÍ es cuenta_usuario: Adobe, Audible, Spotify y similares.
+- Confirmación de pedido, alta o contrato de operadora, banco, utility o SaaS (p. ej. "Movistar te confirma tu pedido") es cuenta_usuario: implica cliente con área privada, no un ticket suelto de turismo.
+- Recibos puntuales de ocio o viajes (entradas, hoteles, trenes de un día) pueden ser transaccional si no hay login, bienvenida de cuenta ni área de cliente.
 - Si en el mismo dominio también hay login, "tu cuenta", línea móvil, factura de cliente, códigos de acceso o portal, entonces SÍ es cuenta_usuario (aunque mezcle onboarding laboral).
 - Códigos OTP, passkeys, 2FA o reset de contraseña cuentan como cuenta_usuario.
 - No inventes servicios que no se sostengan en los asuntos. Conserva google_account y domain tal cual.
@@ -517,6 +527,7 @@ def _merge_inventory(clusters: list[Cluster], detections: list[DetectedAccount] 
                 "n_correos_senal": cluster.n_signal_emails,
                 "tipo": item.tipo,
                 "confianza": f"{item.confidence:.2f}",
+                "gravedad": int(item.gravedad),
                 "ejemplos_asuntos": " | ".join(cluster.signal_subjects[:5] or cluster.subjects[:5]),
             }
         )
@@ -535,7 +546,7 @@ def _merge_inventory(clusters: list[Cluster], detections: list[DetectedAccount] 
 def _write_csv(rows: list[dict], path: Path) -> None:
     from account_cleanup.severity import attach_gravedad
 
-    attach_gravedad(rows)
+    attach_gravedad(rows, overwrite=False)
     path.parent.mkdir(parents=True, exist_ok=True)
     fieldnames = [
         "cuenta",

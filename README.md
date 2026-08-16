@@ -37,7 +37,7 @@ No uso el SDK de Cursor para esto: esa API está pensada para agentes sobre un r
 
 - [uv](https://docs.astral.sh/uv/) (ya usado en esta máquina)
 - Python 3.11+ (uv lo gestiona)
-- Clave de OpenAI solo para `detect` sin `--no-llm`
+- Clave de OpenAI para `detect` y `score` (salvo `--no-llm`)
 
 ```bash
 uv sync
@@ -72,11 +72,14 @@ Prueba del LLM con un subconjunto de candidatos (dominios, no correos sueltos):
 uv run account-cleanup detect --max-candidates 30
 ```
 
-Si ya tienes el CSV y solo quieres (re)calcular la gravedad, sin volver a parsear el correo ni llamar al clasificador:
+Si ya tienes el CSV y solo quieres (re)calcular la gravedad, sin volver a parsear el correo:
 
 ```bash
 uv run account-cleanup score
+uv run account-cleanup score --no-llm
 ```
+
+Por defecto `score` usa el LLM. `--no-llm` aplica la heurística de palabras clave. `detect` pide `gravedad` en la misma clasificación; si el modelo no la trae, se rellena con la heurística.
 
 Salida: `data/processed/accounts_inventory.csv` (UTF-8 con BOM, se abre bien en Excel).
 

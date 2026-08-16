@@ -66,6 +66,12 @@ def main(argv: list[str] | None = None) -> int:
         help="Ruta del CSV (por defecto data/processed/accounts_inventory.csv)",
     )
 
+    score_p.add_argument(
+        "--no-llm",
+        action="store_true",
+        help="Usa la heurística de palabras clave en lugar del modelo",
+    )
+
     args = parser.parse_args(argv)
 
     if args.command == "extract":
@@ -89,7 +95,7 @@ def main(argv: list[str] | None = None) -> int:
         target = Path(args.input) if args.input else INVENTORY_CSV
         if not target.exists():
             raise SystemExit(f"No existe {target}. Ejecuta primero: account-cleanup detect")
-        out = score_csv(target)
+        out = score_csv(target, use_llm=not args.no_llm)
         print(f"Escrito {out}")
         return 0
 

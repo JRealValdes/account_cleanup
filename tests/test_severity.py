@@ -70,3 +70,31 @@ class GravedadTests(unittest.TestCase):
             }
         )
         self.assertLess(jobs, store)
+
+    def test_attach_does_not_overwrite_existing(self):
+        from account_cleanup.severity import attach_gravedad
+
+        rows = [
+            {
+                "cuenta": "BBVA",
+                "descripcion": "banco",
+                "dominio": "bbva.com",
+                "tipo": "cuenta_usuario",
+                "gravedad": 12,
+            }
+        ]
+        attach_gravedad(rows, overwrite=False)
+        self.assertEqual(rows[0]["gravedad"], 12)
+        attach_gravedad(rows, overwrite=True)
+        self.assertGreaterEqual(rows[0]["gravedad"], 90)
+
+    def test_audible_not_scored_as_amazon_store(self):
+        score = heuristic_gravedad(
+            {
+                "cuenta": "Audible",
+                "descripcion": "Servicio de audiolibros de Amazon",
+                "dominio": "audible.es",
+                "tipo": "cuenta_usuario",
+            }
+        )
+        self.assertEqual(score, 58)
