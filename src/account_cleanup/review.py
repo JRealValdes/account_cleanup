@@ -15,6 +15,7 @@ from account_cleanup.config import DEFAULT_MODEL, REVIEW_MATCHES_JSON, REVIEWED_
 
 ESTADO_NO = "No"
 ESTADO_PASSWORD = "Sí - Contraseña cambiada"
+ESTADO_PIN = "Sí - PIN cambiado"
 ESTADO_DELETED = "Sí - Cuenta eliminada"
 ESTADO_OTROS = "Otros"
 
@@ -101,6 +102,8 @@ def infer_estado(raw: str) -> str:
     text = normalize_text(raw)
     if "contrasena" in text and "borrad" in text:
         return ESTADO_PASSWORD
+    if re.search(r"\bpin\b", text) and "cambiad" in text:
+        return ESTADO_PIN
     if "cuenta eliminada" in text or "borrada ademas" in text:
         return ESTADO_DELETED
     if re.search(r"\beliminad", text) and "contrasena" not in text:
@@ -126,7 +129,7 @@ def parse_review_line(raw: str, default_estado: str = ESTADO_PASSWORD) -> Review
         if key in _GOOGLE_HINTS:
             cuenta_google = _GOOGLE_HINTS[key]
             continue
-        if inferred == ESTADO_DELETED or (
+        if inferred in {ESTADO_DELETED, ESTADO_PIN} or (
             "contrasena" in key and "borrad" in key
         ):
             notes.append(chunk.strip())
@@ -360,6 +363,7 @@ def _assign(assignments: dict[int, str], indices: list[int], estado: str) -> Non
         ESTADO_NO: 0,
         ESTADO_OTROS: 1,
         ESTADO_PASSWORD: 2,
+        ESTADO_PIN: 2,
         ESTADO_DELETED: 3,
     }
     for index in indices:

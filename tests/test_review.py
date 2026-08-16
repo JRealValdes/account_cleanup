@@ -4,6 +4,7 @@ from account_cleanup.review import (
     ESTADO_DELETED,
     ESTADO_NO,
     ESTADO_PASSWORD,
+    ESTADO_PIN,
     apply_review,
     infer_estado,
     load_reviewed,
@@ -43,6 +44,17 @@ class ParseReviewTests(unittest.TestCase):
         item = parse_review_line("edenred.com (Borradas contraseñas)")
         self.assertEqual(item.estado, ESTADO_PASSWORD)
         self.assertEqual(infer_estado("edenred.com (Borradas contraseñas)"), ESTADO_PASSWORD)
+
+    def test_pin_changed(self):
+        item = parse_review_line("ABANCA (PIN cambiado)")
+        self.assertEqual(item.estado, ESTADO_PIN)
+        self.assertEqual(item.query, "ABANCA")
+        self.assertEqual(item.aliases, [])
+
+    def test_eliminada_without_cuenta_word(self):
+        item = parse_review_line("TaxDown (Eliminada)")
+        self.assertEqual(item.estado, ESTADO_DELETED)
+        self.assertEqual(item.query, "TaxDown")
 
     def test_javi_maps_google_account(self):
         item = parse_review_line("Fnac (Javi)")
