@@ -34,14 +34,14 @@ _DOMAINISH = re.compile(r"^[a-z0-9.-]+\.[a-z]{2,}$")
 _MATCH_PROMPT = """Empareja notas de limpieza de cuentas con filas de un inventario.
 
 Cada nota tiene un id. Conserva ese id. Cada nota va a CERO o MÁS filas.
-No mezcles marcas distintas: Amazon no es Audible ni Amazon Jobs ni AWS;
+No mezcles marcas distintas: Amazon no es Audible ni Amazon Jobs; Amazon / AWS no es la tienda Amazon.es.
+Repsol workday no es un Workday genérico: solo si la fila nombra Repsol.
 Xiaomi no es Smart Life; un portal de empleo de Sanitas no es el seguro Adeslas.
 Club de Benefits / Plexus no es Wellflex ni Club·by ni Carne Joven.
 SanidadMadrid.org no es Comunidad de Madrid (madrid.org es Cuenta Digital).
 Vodafone no es Wellflex (beneficios de empleado), aunque la descripción mencione Vodafone.
 Si el query es un dominio, usa el campo dominio (o la parte registrable: edenred.com → edenred.info).
 (todos) / (varias) / (varios) = todas las filas de ese servicio.
-Javi = javivireal. Papá = jrealvaldes.
 Equivalencias habituales: Car2go = SHARE NOW; Pottermore = Wizarding World;
 Twitter = X; Sony = PlayStation; IUBH / iubh.de = IU International University;
 Ycombinator = YC Work at a Startup; Madrid.org = Comunidad de Madrid;
