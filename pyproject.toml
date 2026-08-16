@@ -1,0 +1,23 @@
+[project]
+name = "account-cleanup"
+version = "0.1.0"
+description = "Inventario de cuentas online a partir de Google Takeout (correo)"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "openai>=1.40.0",
+    "pydantic>=2.7.0",
+    "python-dotenv>=1.0.1",
+    "tldextract>=5.1.2",
+    "tqdm>=4.66.0",
+]
+
+[project.scripts]
+account-cleanup = "account_cleanup.cli:main"
+
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]

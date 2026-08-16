@@ -216,3 +216,18 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Private Google Takeout dumps and derived artifacts
+/data/raw/
+/data/interim/
+/data/processed/
+*.mbox
+*.mbox.gz
+
+# Local secrets
+.env
+.env.local
+
+# Legacy Takeout folder names (por si reaparecen copias junto a data/raw/)
+/data_javivireal/
+/data_jrealvaldes/
