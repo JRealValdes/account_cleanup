@@ -21,6 +21,8 @@ from account_cleanup.config import CANDIDATES_JSON, DEFAULT_MODEL, EMAILS_JSONL,
 
 _PERSONAL_MAIL_DOMAINS = {"gmail.com", "googlemail.com"}
 _OWN_ADDRESSES = {addr.lower() for addr in GOOGLE_EMAILS.values()}
+# El propio proveedor del Takeout no es una cuenta a "limpiar".
+_SKIP_DOMAINS = {"google.com"}
 _DATE_PREFIX = re.compile(r"^(\d{4}-\d{2}-\d{2})")
 
 # Los regex se aplican a texto YA pasado por normalize_text: minúsculas, sin diacríticos.
@@ -343,7 +345,7 @@ def load_clusters(emails_path: Path | None = None) -> list[Cluster]:
             if from_email in _OWN_ADDRESSES:
                 continue
             domain = registrable_domain(from_email)
-            if not domain or domain in _PERSONAL_MAIL_DOMAINS:
+            if not domain or domain in _PERSONAL_MAIL_DOMAINS or domain in _SKIP_DOMAINS:
                 continue
             account = record.get("google_account") or "unknown"
             key = (account, domain)
@@ -381,21 +383,25 @@ class DetectionBatch(BaseModel):
 
 _SYSTEM_PROMPT = """Eres un analista que reconstruye un inventario de cuentas online a partir de metadatos de correo.
 
-El usuario quiere saber EN QUÉ SITIOS se ha llegado a registrar, para poder hacer limpieza de cuentas.
+El usuario quiere saber EN QUÉ SITIOS se ha llegado a registrar, para poder hacer limpieza de cuentas (cerrarlas, borrar datos, darse de baja).
 
 Para cada candidato (dominio + cuenta Google) decide:
-- is_account: true solo si los asuntos indican registro, bienvenida, verificación de email, reset de contraseña, códigos de acceso, o relación de cuenta de usuario. No basta con marketing genérico o un boletín suelto sin registro.
+- is_account: true si hay evidencia de registro, login, verificación de email, reset de contraseña, códigos de acceso, portal de cliente o de empleado, o relación de cuenta de usuario. No basta con marketing genérico ni un boletín suelto sin registro.
 - tipo:
-  - cuenta_usuario: hay cuenta/login (red social, tienda, banco, SaaS, foro, administración, etc.)
+  - cuenta_usuario: hay cuenta/login (red social, tienda, banco, SaaS, foro, operadora, administración, portal de empleado, proceso de selección con acceso, etc.)
   - newsletter: principalmente lista de correo / suscripción, sin cuenta clara
   - transaccional: recibos, envíos, avisos puntuales sin evidencia de cuenta
   - no_relevante: spam, notificaciones ajenas, o no se puede afirmar nada
-- service_name: marca o producto, no la dirección de no-reply. Si un mismo dominio agrupa productos distintos y los asuntos lo dejan claro, quédate con el producto principal o un nombre conjunto breve ("Google: YouTube / Play").
-- description: en español, para que el usuario recuerde de qué iba el sitio.
+- service_name: marca o producto corto (Spotify, GitHub, SHARE NOW). No uses la dirección de no-reply. Si un mismo dominio agrupa productos distintos y los asuntos lo dejan claro, un nombre conjunto breve ("Uber / Uber Eats").
+- description: en español, 1-2 frases sobre QUÉ ES el sitio y para qué se usa, para que el usuario lo reconozca. No enumeres los tipos de correo recibidos.
 - confidence: 0 a 1.
 
-No inventes servicios que no se sostengan en los asuntos. Conserva google_account y domain tal cual.
-Incluye cuenta_usuario y newsletter con is_account=true. El resto, is_account=false.
+Criterios límite:
+- Un "bienvenido al equipo / sesión de acogida / welcome kit" laboral, por sí solo, no es una cuenta de usuario.
+- Si en el mismo dominio también hay login, "tu cuenta", línea móvil, factura de cliente, códigos de acceso o portal, entonces SÍ es cuenta_usuario (aunque mezcle onboarding laboral).
+- Códigos OTP, passkeys, 2FA o reset de contraseña cuentan como cuenta_usuario.
+- No inventes servicios que no se sostengan en los asuntos. Conserva google_account y domain tal cual.
+- Incluye cuenta_usuario y newsletter con is_account=true. El resto, is_account=false.
 """
 
 
