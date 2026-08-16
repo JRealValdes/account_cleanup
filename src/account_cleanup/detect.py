@@ -533,10 +533,14 @@ def _merge_inventory(clusters: list[Cluster], detections: list[DetectedAccount] 
 
 
 def _write_csv(rows: list[dict], path: Path) -> None:
+    from account_cleanup.severity import attach_gravedad
+
+    attach_gravedad(rows)
     path.parent.mkdir(parents=True, exist_ok=True)
     fieldnames = [
         "cuenta",
         "cuenta_google",
+        "gravedad",
         "descripcion",
         "fecha_primer_correo",
         "fecha_ultimo_correo",
@@ -550,10 +554,10 @@ def _write_csv(rows: list[dict], path: Path) -> None:
     ]
     rows_sorted = sorted(
         rows,
-        key=lambda r: (r["cuenta_google"], r["cuenta"].lower()),
+        key=lambda r: (-int(r.get("gravedad") or 0), r["cuenta"].lower(), r["cuenta_google"]),
     )
     with path.open("w", encoding="utf-8-sig", newline="") as handle:
-        writer = csv.DictWriter(handle, fieldnames=fieldnames)
+        writer = csv.DictWriter(handle, fieldnames=fieldnames, extrasaction="ignore")
         writer.writeheader()
         writer.writerows(rows_sorted)
 

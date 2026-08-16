@@ -72,6 +72,12 @@ Prueba del LLM con un subconjunto de candidatos (dominios, no correos sueltos):
 uv run account-cleanup detect --max-candidates 30
 ```
 
+Si ya tienes el CSV y solo quieres (re)calcular la gravedad, sin volver a parsear el correo ni llamar al clasificador:
+
+```bash
+uv run account-cleanup score
+```
+
 Salida: `data/processed/accounts_inventory.csv` (UTF-8 con BOM, se abre bien en Excel).
 
 Columnas:
@@ -80,6 +86,7 @@ Columnas:
 |---|---|
 | `cuenta` | Sitio o servicio detectado |
 | `cuenta_google` | `javivireal` o `jrealvaldes` |
+| `gravedad` | 0–100: impacto si esa cuenta se hackea (el CSV va de más grave a menos) |
 | `descripcion` | De qué va, para reconocerlo |
 | `fecha_primer_correo` / `fecha_ultimo_correo` | Rango visto en el Takeout |
 | `dominio` | Dominio registrable del remitente |

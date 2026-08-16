@@ -4,10 +4,12 @@ from __future__ import annotations
 
 import argparse
 import json
+from pathlib import Path
 
 from account_cleanup.config import CANDIDATES_JSON, EMAILS_JSONL, INVENTORY_CSV
 from account_cleanup.detect import detect_accounts
 from account_cleanup.extract import extract_all
+from account_cleanup.severity import score_csv
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -53,6 +55,17 @@ def main(argv: list[str] | None = None) -> int:
     run_p.add_argument("--min-signals", type=int, default=1)
     run_p.add_argument("--max-candidates", type=int, default=None)
 
+    score_p = sub.add_parser(
+        "score",
+        help="Recalcula la columna gravedad de un CSV de inventario ya generado (sin reparsear mbox)",
+    )
+    score_p.add_argument(
+        "--input",
+        type=str,
+        default=None,
+        help="Ruta del CSV (por defecto data/processed/accounts_inventory.csv)",
+    )
+
     args = parser.parse_args(argv)
 
     if args.command == "extract":
@@ -69,6 +82,14 @@ def main(argv: list[str] | None = None) -> int:
             max_candidates=args.max_candidates,
         )
         _print_detect_summary()
+        print(f"Escrito {out}")
+        return 0
+
+    if args.command == "score":
+        target = Path(args.input) if args.input else INVENTORY_CSV
+        if not target.exists():
+            raise SystemExit(f"No existe {target}. Ejecuta primero: account-cleanup detect")
+        out = score_csv(target)
         print(f"Escrito {out}")
         return 0
 
