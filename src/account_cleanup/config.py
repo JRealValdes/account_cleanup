@@ -10,6 +10,8 @@ DATA_PROCESSED = ROOT / "data" / "processed"
 EMAILS_JSONL = DATA_INTERIM / "emails.jsonl"
 CANDIDATES_JSON = DATA_INTERIM / "account_candidates.json"
 INVENTORY_CSV = DATA_PROCESSED / "accounts_inventory.csv"
+REVIEWED_JSON = ROOT / "data" / "reviewed.json"
+REVIEW_MATCHES_JSON = DATA_INTERIM / "review_matches.json"
 
 GOOGLE_EMAILS = {
     "javivireal": "javivireal@gmail.com",

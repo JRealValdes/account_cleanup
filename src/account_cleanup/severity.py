@@ -317,5 +317,5 @@ def score_csv(path: Path, use_llm: bool = True) -> Path:
 
     from account_cleanup.detect import _write_csv
 
-    _write_csv(rows, path)
+    _write_csv(rows, path, use_llm=use_llm)
     return path

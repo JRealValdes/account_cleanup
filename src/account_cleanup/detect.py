@@ -543,15 +543,18 @@ def _merge_inventory(clusters: list[Cluster], detections: list[DetectedAccount] 
     return list(collapsed.values())
 
 
-def _write_csv(rows: list[dict], path: Path) -> None:
+def _write_csv(rows: list[dict], path: Path, use_llm: bool = True) -> None:
+    from account_cleanup.review import apply_review, print_review_report, sort_inventory_rows
     from account_cleanup.severity import attach_gravedad
 
     attach_gravedad(rows, overwrite=False)
+    report = apply_review(rows, use_llm=use_llm)
     path.parent.mkdir(parents=True, exist_ok=True)
     fieldnames = [
         "cuenta",
         "cuenta_google",
         "gravedad",
+        "resuelto",
         "descripcion",
         "fecha_primer_correo",
         "fecha_ultimo_correo",
@@ -563,14 +566,12 @@ def _write_csv(rows: list[dict], path: Path) -> None:
         "confianza",
         "ejemplos_asuntos",
     ]
-    rows_sorted = sorted(
-        rows,
-        key=lambda r: (-int(r.get("gravedad") or 0), r["cuenta"].lower(), r["cuenta_google"]),
-    )
+    rows_sorted = sort_inventory_rows(rows)
     with path.open("w", encoding="utf-8-sig", newline="") as handle:
         writer = csv.DictWriter(handle, fieldnames=fieldnames, extrasaction="ignore")
         writer.writeheader()
         writer.writerows(rows_sorted)
+    print_review_report(report)
 
 
 def detect_accounts(
@@ -621,5 +622,5 @@ def detect_accounts(
         [c for c in clusters if c.has_account_signal()],
         detections,
     )
-    _write_csv(rows, INVENTORY_CSV)
+    _write_csv(rows, INVENTORY_CSV, use_llm=use_llm)
     return INVENTORY_CSV

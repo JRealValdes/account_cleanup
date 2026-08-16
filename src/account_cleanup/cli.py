@@ -3,11 +3,12 @@
 from __future__ import annotations
 
 import argparse
+import csv
 import json
 from pathlib import Path
 
 from account_cleanup.config import CANDIDATES_JSON, EMAILS_JSONL, INVENTORY_CSV
-from account_cleanup.detect import detect_accounts
+from account_cleanup.detect import _write_csv, detect_accounts
 from account_cleanup.extract import extract_all
 from account_cleanup.severity import score_csv
 
@@ -72,6 +73,22 @@ def main(argv: list[str] | None = None) -> int:
         help="Usa la heurística de palabras clave en lugar del modelo",
     )
 
+    review_p = sub.add_parser(
+        "review",
+        help="Aplica data/reviewed.json al CSV (columna resuelto) sin reparsear ni rescorear",
+    )
+    review_p.add_argument(
+        "--input",
+        type=str,
+        default=None,
+        help="Ruta del CSV (por defecto data/processed/accounts_inventory.csv)",
+    )
+    review_p.add_argument(
+        "--no-llm",
+        action="store_true",
+        help="Solo coincidencia por nombre/dominio, sin el modelo para alias",
+    )
+
     args = parser.parse_args(argv)
 
     if args.command == "extract":
@@ -97,6 +114,16 @@ def main(argv: list[str] | None = None) -> int:
             raise SystemExit(f"No existe {target}. Ejecuta primero: account-cleanup detect")
         out = score_csv(target, use_llm=not args.no_llm)
         print(f"Escrito {out}")
+        return 0
+
+    if args.command == "review":
+        target = Path(args.input) if args.input else INVENTORY_CSV
+        if not target.exists():
+            raise SystemExit(f"No existe {target}. Ejecuta primero: account-cleanup detect")
+        with target.open("r", encoding="utf-8-sig", newline="") as handle:
+            rows = list(csv.DictReader(handle))
+        _write_csv(rows, target, use_llm=not args.no_llm)
+        print(f"Escrito {target}")
         return 0
 
     extract_all(limit_per_account=args.limit)

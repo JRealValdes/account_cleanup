@@ -14,6 +14,8 @@ data/
   raw/<cuenta_google>/*.zip         # resto del Takeout (mapas, contactos, …)
   interim/emails.jsonl              # resumen: fecha, from, subject
   processed/accounts_inventory.csv  # inventario final, una fila por cuenta
+  reviewed.json                     # cuentas ya repasadas (local, no se sube)
+  reviewed.example.json             # plantilla del formato
 ```
 
 Cuentas actuales:
@@ -81,6 +83,15 @@ uv run account-cleanup score --no-llm
 
 Por defecto `score` usa el LLM. `--no-llm` aplica la heurística de palabras clave. `detect` pide `gravedad` en la misma clasificación; si el modelo no la trae, se rellena con la heurística.
 
+El listado de cuentas ya repasadas está en `data/reviewed.json` (cópialo de `reviewed.example.json`; no se sube a git). Por defecto: contraseña cambiada; `cuenta eliminada` / `borrada además` = baja. `detect`, `score` y `review` marcan la columna `resuelto` en el CSV. Si el nombre no encaja, el modelo intenta el alias (Sony → PlayStation, Car2go → SHARE NOW); `--no-llm` se queda en nombre y dominio.
+
+```bash
+uv run account-cleanup review
+uv run account-cleanup review --no-llm
+```
+
+El CSV ordena primero lo **no** resuelto (por gravedad) y después lo ya resuelto (por gravedad).
+
 Salida: `data/processed/accounts_inventory.csv` (UTF-8 con BOM, se abre bien en Excel).
 
 Columnas:
@@ -89,7 +100,8 @@ Columnas:
 |---|---|
 | `cuenta` | Sitio o servicio detectado |
 | `cuenta_google` | `javivireal` o `jrealvaldes` |
-| `gravedad` | 0–100: impacto si esa cuenta se hackea (el CSV va de más grave a menos) |
+| `gravedad` | 0–100: impacto si esa cuenta se hackea |
+| `resuelto` | `No`, `Sí - Contraseña cambiada`, `Sí - Cuenta eliminada` u `Otros` |
 | `descripcion` | De qué va, para reconocerlo |
 | `fecha_primer_correo` / `fecha_ultimo_correo` | Rango visto en el Takeout |
 | `dominio` | Dominio registrable del remitente |
