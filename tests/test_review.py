@@ -2,7 +2,9 @@ import unittest
 
 from account_cleanup.review import (
     ESTADO_DELETED,
+    ESTADO_MISSING,
     ESTADO_NO,
+    ESTADO_NOT_MINE,
     ESTADO_PASSWORD,
     ESTADO_PIN,
     apply_review,
@@ -55,6 +57,19 @@ class ParseReviewTests(unittest.TestCase):
         item = parse_review_line("TaxDown (Eliminada)")
         self.assertEqual(item.estado, ESTADO_DELETED)
         self.assertEqual(item.query, "TaxDown")
+
+    def test_not_mine(self):
+        item = parse_review_line("Iberdrola (no era mía)")
+        self.assertEqual(item.estado, ESTADO_NOT_MINE)
+        self.assertEqual(item.query, "Iberdrola")
+
+    def test_facebook_split_by_google_account(self):
+        deleted = parse_review_line("Facebook (jrealvaldes) (cuenta eliminada)")
+        self.assertEqual(deleted.estado, ESTADO_DELETED)
+        self.assertEqual(deleted.cuenta_google, "jrealvaldes")
+        missing = parse_review_line("Facebook (Javi) (no existe)")
+        self.assertEqual(missing.estado, ESTADO_MISSING)
+        self.assertEqual(missing.cuenta_google, "javivireal")
 
     def test_javi_maps_google_account(self):
         item = parse_review_line("Fnac (Javi)")

@@ -17,6 +17,8 @@ ESTADO_NO = "No"
 ESTADO_PASSWORD = "Sí - Contraseña cambiada"
 ESTADO_PIN = "Sí - PIN cambiado"
 ESTADO_DELETED = "Sí - Cuenta eliminada"
+ESTADO_NOT_MINE = "Sí - No era mía"
+ESTADO_MISSING = "Sí - No existe"
 ESTADO_OTROS = "Otros"
 
 _GOOGLE_HINTS = {
@@ -104,6 +106,10 @@ def infer_estado(raw: str) -> str:
         return ESTADO_PASSWORD
     if re.search(r"\bpin\b", text) and "cambiad" in text:
         return ESTADO_PIN
+    if "no era mia" in text or "casero" in text:
+        return ESTADO_NOT_MINE
+    if "no existe" in text or "no tienen" in text:
+        return ESTADO_MISSING
     if "cuenta eliminada" in text or "borrada ademas" in text:
         return ESTADO_DELETED
     if re.search(r"\beliminad", text) and "contrasena" not in text:
@@ -129,7 +135,7 @@ def parse_review_line(raw: str, default_estado: str = ESTADO_PASSWORD) -> Review
         if key in _GOOGLE_HINTS:
             cuenta_google = _GOOGLE_HINTS[key]
             continue
-        if inferred in {ESTADO_DELETED, ESTADO_PIN} or (
+        if inferred in {ESTADO_DELETED, ESTADO_PIN, ESTADO_NOT_MINE, ESTADO_MISSING} or (
             "contrasena" in key and "borrad" in key
         ):
             notes.append(chunk.strip())
@@ -364,6 +370,8 @@ def _assign(assignments: dict[int, str], indices: list[int], estado: str) -> Non
         ESTADO_OTROS: 1,
         ESTADO_PASSWORD: 2,
         ESTADO_PIN: 2,
+        ESTADO_NOT_MINE: 2,
+        ESTADO_MISSING: 2,
         ESTADO_DELETED: 3,
     }
     for index in indices:
