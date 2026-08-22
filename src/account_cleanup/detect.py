@@ -68,12 +68,14 @@ _SIGNAL_PATTERN_SOURCES = (
     r"\bcrear(?:te)? una cuenta",
     r"\bcreate(?: your)? (?:an )?account",
     # --- Verificar / confirmar email o cuenta ---
-    r"\bconfirma(?:r)?(?: tu)? (?:correo|e-?mail|direccion|cuenta|registro|identidad|dispositivo)",
+    r"\bconfirma(?:r)?(?: (?:tu|la|el|su))? (?:correo|e-?mail|direccion|cuenta|registro|identidad|dispositivo)",
     r"\bconfirm(?: your)? (?:e-?mail|address|account|signup|sign[- ]?up|registration|subscription|device|identity)",
     r"\bconfirmacion de (?:correo|e-?mail|cuenta|registro|suscripcion|alta|usuario|identidad|dispositivo)",
     r"\bverify(?: your)? (?:e-?mail|address|account|identity|device)",
-    r"\bverifica(?:r)?(?: tu)? (?:correo|e-?mail|cuenta|direccion|identidad|dispositivo)",
-    r"\bverificacion de (?:correo|e-?mail|cuenta|identidad)",
+    r"\bverifica(?:r)?(?: (?:tu|la|el|su))? (?:correo|e-?mail|cuenta|direccion|identidad|dispositivo)",
+    r"\bverificarte\b",
+    r"\bvamos a verificar",
+    r"\bverificacion de (?:correo|e-?mail|cuenta|identidad|direccion)",
     r"\be-?mail verification\b",
     r"\bplease (?:confirm|verify)\b",
     r"\bpor favor (?:confirma|verifica)",
@@ -81,7 +83,7 @@ _SIGNAL_PATTERN_SOURCES = (
     r"\bhaz clic para (?:confirm|verific|activ)",
     r"\bpulsa(?: aqui)? para (?:confirm|verific|activ)",
     r"\bvalidate(?: your)? (?:e-?mail|account)",
-    r"\bvalida(?:r)?(?: tu)? (?:correo|e-?mail|cuenta)",
+    r"\bvalida(?:r)?(?: (?:tu|la|el|su))? (?:correo|e-?mail|cuenta|direccion)",
     r"\bvalidacion de (?:correo|e-?mail|cuenta)",
     r"\bactiva(?:r)?(?: tu)? (?:cuenta|correo|e-?mail)",
     r"\bactivate your (?:account|e-?mail)",
@@ -579,6 +581,7 @@ def detect_accounts(
     use_llm: bool = True,
     min_signal_emails: int = 1,
     max_candidates: int | None = None,
+    keep_existing: bool = False,
 ) -> Path:
     clusters = load_clusters(emails_path)
     candidates = [
@@ -586,7 +589,29 @@ def detect_accounts(
         for c in clusters
         if c.has_account_signal() and c.n_signal_emails >= min_signal_emails
     ]
-    llm_candidates = _select_candidates(candidates, max_candidates)
+
+    existing_rows: list[dict] = []
+    existing_keys: set[tuple[str, str]] = set()
+    if keep_existing and INVENTORY_CSV.exists():
+        with INVENTORY_CSV.open("r", encoding="utf-8-sig", newline="") as handle:
+            existing_rows = list(csv.DictReader(handle))
+        existing_keys = {
+            (row.get("dominio") or "", row.get("cuenta_google") or "")
+            for row in existing_rows
+        }
+        llm_pool = [
+            item
+            for item in candidates
+            if (item["domain"], item["google_account"]) not in existing_keys
+        ]
+        print(
+            f"Inventario existente: {len(existing_rows)} filas. "
+            f"Candidatos nuevos: {len(llm_pool)}"
+        )
+    else:
+        llm_pool = candidates
+
+    llm_candidates = _select_candidates(llm_pool, max_candidates)
     CANDIDATES_JSON.parent.mkdir(parents=True, exist_ok=True)
     CANDIDATES_JSON.write_text(
         json.dumps(
@@ -595,7 +620,7 @@ def detect_accounts(
                 "n_candidates": len(candidates),
                 "n_llm_candidates": len(llm_candidates),
                 "candidates": candidates,
-                "llm_candidates": llm_candidates if max_candidates is not None else None,
+                "llm_candidates": llm_candidates if max_candidates is not None or keep_existing else None,
             },
             ensure_ascii=False,
             indent=2,
@@ -607,20 +632,49 @@ def detect_accounts(
     detections: list[DetectedAccount] | None
     detections_path = CANDIDATES_JSON.with_name("llm_detections.json")
     if use_llm:
-        detections = _llm_batches(llm_candidates)
-        detections_path.write_text(
-            json.dumps([item.model_dump() for item in detections], ensure_ascii=False, indent=2)
-            + "\n",
-            encoding="utf-8",
-        )
+        detections = _llm_batches(llm_candidates) if llm_candidates else []
+        if keep_existing and detections_path.exists() and detections:
+            previous = json.loads(detections_path.read_text(encoding="utf-8"))
+            previous.extend(item.model_dump() for item in detections)
+            detections_path.write_text(
+                json.dumps(previous, ensure_ascii=False, indent=2) + "\n",
+                encoding="utf-8",
+            )
+        else:
+            detections_path.write_text(
+                json.dumps([item.model_dump() for item in detections], ensure_ascii=False, indent=2)
+                + "\n",
+                encoding="utf-8",
+            )
     else:
         detections = None
-        if detections_path.exists():
+        if detections_path.exists() and not keep_existing:
             detections_path.unlink()
 
-    rows = _merge_inventory(
-        [c for c in clusters if c.has_account_signal()],
-        detections,
-    )
+    if keep_existing and existing_rows:
+        new_clusters = [
+            cluster
+            for cluster in clusters
+            if cluster.has_account_signal()
+            and (cluster.domain, cluster.google_account) not in existing_keys
+        ]
+        new_rows = _merge_inventory(new_clusters, detections)
+        seen = {
+            (normalize_text(row.get("cuenta") or ""), row.get("cuenta_google") or "")
+            for row in existing_rows
+        }
+        merged = list(existing_rows)
+        for row in new_rows:
+            key = (normalize_text(row.get("cuenta") or ""), row.get("cuenta_google") or "")
+            if key in seen:
+                continue
+            merged.append(row)
+            seen.add(key)
+        rows = merged
+    else:
+        rows = _merge_inventory(
+            [c for c in clusters if c.has_account_signal()],
+            detections,
+        )
     _write_csv(rows, INVENTORY_CSV, use_llm=use_llm)
     return INVENTORY_CSV

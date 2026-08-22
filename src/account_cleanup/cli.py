@@ -49,6 +49,11 @@ def main(argv: list[str] | None = None) -> int:
         default=None,
         help="Máximo de candidatos (dominios) que se envían al LLM; útil para pruebas",
     )
+    detect_p.add_argument(
+        "--keep-existing",
+        action="store_true",
+        help="No reescribe el CSV: solo clasifica dominios nuevos y los añade",
+    )
 
     run_p = sub.add_parser("run", help="extract + detect")
     run_p.add_argument("--limit", type=int, default=None)
@@ -103,6 +108,7 @@ def main(argv: list[str] | None = None) -> int:
             use_llm=not args.no_llm,
             min_signal_emails=args.min_signals,
             max_candidates=args.max_candidates,
+            keep_existing=args.keep_existing,
         )
         _print_detect_summary()
         print(f"Escrito {out}")

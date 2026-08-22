@@ -47,6 +47,15 @@ class SignalPatternTests(unittest.TestCase):
             with self.subTest(subject=subject):
                 self.assertTrue(subject_signals(subject), f"sin señal: {subject}")
 
+    def test_tinder_verify_la_direccion(self):
+        samples = [
+            "Asegura tu Cuenta de Tinder – Verifica la Dirección de Correo Electrónico",
+            "Vamos a verificarte 🔥",
+        ]
+        for subject in samples:
+            with self.subTest(subject=subject):
+                self.assertTrue(subject_signals(subject), f"sin señal: {subject}")
+
     def test_order_confirmation_is_not_a_bare_hit(self):
         # No queremos que "confirmación de pedido" dispare por sí sola.
         self.assertFalse(subject_signals("Confirmación de pedido #1234"))
