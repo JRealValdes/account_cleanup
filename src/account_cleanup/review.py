@@ -19,6 +19,9 @@ ESTADO_PIN = "Sí - PIN cambiado"
 ESTADO_DELETED = "Sí - Cuenta eliminada"
 ESTADO_NOT_MINE = "Sí - No era mía"
 ESTADO_MISSING = "Sí - No existe"
+ESTADO_SESSIONS = "Sí - Sesiones cerradas"
+ESTADO_GOOGLE_LOGIN = "Sí - Login con Google"
+ESTADO_DELETE_REQUESTED = "Sí - Baja solicitada"
 ESTADO_OTROS = "Otros"
 
 _GOOGLE_HINTS = {
@@ -29,7 +32,7 @@ _GOOGLE_HINTS = {
     "jrealvaldes": "jrealvaldes",
 }
 
-_SCOPE_ALL = {"todos", "todas", "varios", "varias", "todas las cuentas"}
+_SCOPE_ALL = {"todos", "todas", "varios", "varias", "ambas", "ambos", "todas las cuentas"}
 
 _PAREN = re.compile(r"\(([^)]*)\)")
 _DOMAINISH = re.compile(r"^[a-z0-9.-]+\.[a-z]{2,}$")
@@ -112,8 +115,16 @@ def infer_estado(raw: str) -> str:
         return ESTADO_MISSING
     if "cuenta eliminada" in text or "borrada ademas" in text:
         return ESTADO_DELETED
+    if "baja solicitada" in text or (
+        "solicitad" in text and ("eliminacion" in text or "baja" in text)
+    ):
+        return ESTADO_DELETE_REQUESTED
     if re.search(r"\beliminad", text) and "contrasena" not in text:
         return ESTADO_DELETED
+    if "sesiones cerradas" in text or "cerrado sesion" in text:
+        return ESTADO_SESSIONS
+    if "login con google" in text or "acceso por google" in text or "acceso por cuenta de google" in text:
+        return ESTADO_GOOGLE_LOGIN
     return ESTADO_PASSWORD
 
 
@@ -135,7 +146,15 @@ def parse_review_line(raw: str, default_estado: str = ESTADO_PASSWORD) -> Review
         if key in _GOOGLE_HINTS:
             cuenta_google = _GOOGLE_HINTS[key]
             continue
-        if inferred in {ESTADO_DELETED, ESTADO_PIN, ESTADO_NOT_MINE, ESTADO_MISSING} or (
+        if inferred in {
+            ESTADO_DELETED,
+            ESTADO_PIN,
+            ESTADO_NOT_MINE,
+            ESTADO_MISSING,
+            ESTADO_SESSIONS,
+            ESTADO_GOOGLE_LOGIN,
+            ESTADO_DELETE_REQUESTED,
+        } or (
             "contrasena" in key and "borrad" in key
         ):
             notes.append(chunk.strip())
@@ -372,6 +391,9 @@ def _assign(assignments: dict[int, str], indices: list[int], estado: str) -> Non
         ESTADO_PIN: 2,
         ESTADO_NOT_MINE: 2,
         ESTADO_MISSING: 2,
+        ESTADO_SESSIONS: 2,
+        ESTADO_GOOGLE_LOGIN: 2,
+        ESTADO_DELETE_REQUESTED: 2,
         ESTADO_DELETED: 3,
     }
     for index in indices:

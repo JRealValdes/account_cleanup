@@ -72,6 +72,7 @@ Prueba del LLM con un subconjunto de candidatos (dominios, no correos sueltos):
 
 ```bash
 uv run account-cleanup detect --max-candidates 30
+uv run account-cleanup detect --keep-existing
 ```
 
 Si ya tienes el CSV y solo quieres (re)calcular la gravedad, sin volver a parsear el correo:
@@ -83,7 +84,7 @@ uv run account-cleanup score --no-llm
 
 Por defecto `score` usa el LLM. `--no-llm` aplica la heurística de palabras clave. `detect` pide `gravedad` en la misma clasificación; si el modelo no la trae, se rellena con la heurística.
 
-El listado de cuentas ya repasadas está en `data/reviewed.json` (cópialo de `reviewed.example.json`; no se sube a git). Por defecto: contraseña cambiada; `PIN cambiado` = PIN; `cuenta eliminada` / `borrada además` / `eliminada` = baja; `no era mía` = el email se usó en una cuenta ajena; `no existe` = el servicio ya no tiene cuenta. `detect`, `score` y `review` marcan la columna `resuelto` en el CSV. Si el nombre no encaja, el modelo intenta el alias (Sony → PlayStation, Car2go → SHARE NOW); `--no-llm` se queda en nombre y dominio.
+El listado de cuentas ya repasadas está en `data/reviewed.json` (cópialo de `reviewed.example.json`; no se sube a git). Por defecto: contraseña cambiada; `PIN cambiado` = PIN; `cuenta eliminada` / `borrada además` / `eliminada` = baja; `baja solicitada` / `eliminación solicitada` = contraseña tocada y baja en curso; `no era mía` = el email se usó en una cuenta ajena; `no existe` = el servicio ya no tiene cuenta; `sesiones cerradas` = login a salvo sin cambiar contraseña; `login con Google` = acceso por la cuenta de Google. `detect`, `score` y `review` marcan la columna `resuelto` en el CSV. Si el nombre no encaja, el modelo intenta el alias (Sony → PlayStation, Car2go → SHARE NOW); `--no-llm` se queda en nombre y dominio.
 
 ```bash
 uv run account-cleanup review

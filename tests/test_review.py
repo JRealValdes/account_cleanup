@@ -7,6 +7,9 @@ from account_cleanup.review import (
     ESTADO_NOT_MINE,
     ESTADO_PASSWORD,
     ESTADO_PIN,
+    ESTADO_SESSIONS,
+    ESTADO_GOOGLE_LOGIN,
+    ESTADO_DELETE_REQUESTED,
     apply_review,
     infer_estado,
     load_reviewed,
@@ -62,6 +65,27 @@ class ParseReviewTests(unittest.TestCase):
         item = parse_review_line("Iberdrola (no era mía)")
         self.assertEqual(item.estado, ESTADO_NOT_MINE)
         self.assertEqual(item.query, "Iberdrola")
+
+    def test_delete_requested_with_password(self):
+        item = parse_review_line(
+            "Apple (contraseña cambiada y eliminación de la cuenta solicitada)"
+        )
+        self.assertEqual(item.estado, ESTADO_DELETE_REQUESTED)
+        self.assertEqual(item.query, "Apple")
+        self.assertEqual(item.aliases, [])
+
+    def test_google_login_both_accounts(self):
+        item = parse_review_line("WeTransfer (ambas) (login con Google)")
+        self.assertEqual(item.estado, ESTADO_GOOGLE_LOGIN)
+        self.assertEqual(item.query, "WeTransfer")
+        self.assertTrue(item.scope_all)
+        self.assertEqual(item.aliases, [])
+
+    def test_sessions_closed(self):
+        item = parse_review_line("eDreams (sesiones cerradas)")
+        self.assertEqual(item.estado, ESTADO_SESSIONS)
+        self.assertEqual(item.query, "eDreams")
+        self.assertEqual(item.aliases, [])
 
     def test_facebook_split_by_google_account(self):
         deleted = parse_review_line("Facebook (jrealvaldes) (cuenta eliminada)")
@@ -166,6 +190,29 @@ class ApplyAndSortTests(unittest.TestCase):
         self.assertEqual(ordered[2]["cuenta"], "Fotocasa")
         self.assertEqual(ordered[3]["cuenta"], "GAME")
         self.assertEqual(ordered[0]["resuelto"], ESTADO_NO)
+
+    def test_nintendo_account_deleted_does_not_touch_javivireal(self):
+        rows = [
+            _row("Nintendo Account", "jrealvaldes", "nintendo.com", 62),
+            _row("Nintendo", "javivireal", "nintendo-europe.com", 62),
+        ]
+        items = [
+            parse_review_line("Nintendo"),
+            parse_review_line("Nintendo Account (jrealvaldes) (cuenta eliminada)"),
+        ]
+        apply_review(rows, items=items, use_llm=False)
+        self.assertEqual(rows[0]["resuelto"], ESTADO_DELETED)
+        self.assertEqual(rows[1]["resuelto"], ESTADO_PASSWORD)
+
+    def test_wetransfer_google_login_marks_both_accounts(self):
+        rows = [
+            _row("WeTransfer", "javivireal", "wetransfer.com", 84),
+            _row("WeTransfer", "jrealvaldes", "wetransfer.com", 84),
+        ]
+        items = [parse_review_line("WeTransfer (ambas) (login con Google)")]
+        apply_review(rows, items=items, use_llm=False)
+        self.assertEqual(rows[0]["resuelto"], ESTADO_GOOGLE_LOGIN)
+        self.assertEqual(rows[1]["resuelto"], ESTADO_GOOGLE_LOGIN)
 
     def test_fnac_papa_does_not_reuse_javi_match(self):
         rows = [_row("Fnac", "javivireal", "fnac.es", 72)]
